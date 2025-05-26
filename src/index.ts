@@ -98,7 +98,47 @@ app.put("/api/update-event/:id", loginMiddleware, async (req, res) => {
   return;
 });
 
+app.get("/api/events/:id", loginMiddleware, async (req, res) => {
+  const result = await EventModel.findById(req.params.id).lean().exec();
+  if (!result) {
+    res.status(404).json({ message: "event not found" });
+    return;
+  }
+  res.status(200).json({ data: result });
+  return;
+});
+
+app.get("/api/:event/images", loginMiddleware, async (req, res) => {
+  const { event } = req.params;
+  if (!event) {
+    res.status(400).json({ message: "Event ID is required" });
+    return;
+  }
+  const images = await ImageURL.find({ event })
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+  res.json({ data: images });
+  return;
+});
+
 // For Event and Images Public URLs
+
+app.get("/api/images", async (req, res) => {
+  const p = qs.parse(qs.stringify(req.query), {
+    ignoreQueryPrefix: true,
+    depth: Infinity, // Increase depth to handle nested structures
+    allowDots: true, // Allow dot notation for nested objects
+    arrayLimit: Infinity,
+  });
+  const query = parseQuery(p.filter || {});
+  const images = await ImageURL.find(query)
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+  res.json(images);
+  return;
+});
 
 app.get("/api/events", async (req, res) => {
   const p = qs.parse(qs.stringify(req.query), {
@@ -112,29 +152,7 @@ app.get("/api/events", async (req, res) => {
   res.json(events);
 });
 
-app.get("/api/events/:id", async (req, res) => {
-  const result = await EventModel.findById(req.params.id).lean().exec();
-  if (!result) {
-    res.status(404).json({ message: "event not found" });
-    return;
-  }
-  res.status(200).json({ data: result });
-  return;
-});
-
-app.get("/api/:event/images", async (req, res) => {
-  const { event } = req.params;
-  if (!event) {
-    res.status(400).json({ message: "Event ID is required" });
-    return;
-  }
-  const images = await ImageURL.find({ event })
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
-  res.json({ data: images });
-  return;
-});
+// Ends here
 
 app.post("/api/images", loginMiddleware, async (req, res) => {
   const image = await ImageURL.create(req.body);
